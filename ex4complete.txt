@@ -1,0 +1,73 @@
+
+# Step 1: Install and import libraries
+!pip install -q transformers gradio torch
+
+import torch
+import gradio as gr
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+# Step 2: Load GPT-2 model
+model_name = "gpt2"
+
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+
+model.eval()
+
+print("GPT-2 loaded successfully!")
+
+
+# Step 3: Generate code completion
+
+def complete_code(prompt):
+
+    # Add Python instruction
+    prompt = "# Python code completion\n" + prompt
+
+    inputs = tokenizer(prompt, return_tensors="pt")
+
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=50,
+            do_sample=False,
+            repetition_penalty=1.2,
+            pad_token_id=tokenizer.eos_token_id
+        )
+
+    generated_tokens = outputs[0][inputs["input_ids"].shape[1]:]
+
+    result = tokenizer.decode(
+        generated_tokens,
+        skip_special_tokens=True
+    )
+
+    return result
+
+
+
+# Step 4: Create Gradio interface
+def code_completion_interface(code):
+
+    if not code.strip():
+        return "Please enter some Python code."
+
+    return complete_code(code)
+
+
+# Step 5: Display interface
+demo = gr.Interface(
+    fn=code_completion_interface,
+    inputs=gr.Textbox(
+        lines=10,
+        label="Enter your Python code"
+    ),
+    outputs=gr.Textbox(
+        lines=10,
+        label="AI Code Completion"
+    ),
+    title="Transformer-Based Code Completion",
+    description="Complete Python code using GPT-2."
+)
+
+demo.launch()
